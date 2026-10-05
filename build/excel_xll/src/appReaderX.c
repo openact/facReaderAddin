@@ -68,12 +68,14 @@ typedef int (__cdecl *EReadResultFn)(char *filePath, int coordCount,
     char *k7, char *k8, char *k9, char *k10, char *k11, char *k12,
     double *valueOut);
 typedef int (__cdecl *FacNumDimsFn)(char *filePath);
+typedef int (__cdecl *FacLoadErrorFn)(char *filePath, char *buffer, int capacity);
 
 static HMODULE g_module = NULL;
 static HMODULE g_appReader = NULL;
 static EProjResultFn g_projResult = NULL;
 static EReadResultFn g_readResult = NULL;
 static FacNumDimsFn g_facNumDims = NULL;
+static FacLoadErrorFn g_facLoadError = NULL;
 
 static __thread XLOPER g_result;
 static __thread char g_resultText[256];
@@ -118,6 +120,8 @@ static const char *status_text(int status) {
     case 4: return "numeric parse error";
     case 5: return "failed to write batch output";
     case 6: return "file not found";
+    case 7: return "FAC load error";
+    case 8: return "wildcard is not allowed";
     default: return "unknown status";
     }
 }
@@ -136,13 +140,23 @@ static LPXLOPER read_error_result(const char *path, int expectedDims, int gotDim
         }
         break;
     case 3:
-        snprintf(msg, sizeof(msg), "#ERROR: invalid argument for %s (wildcard \"*\" is not allowed).", path);
+        snprintf(msg, sizeof(msg), "#ERROR: invalid argument for %s.", path);
         break;
     case 4:
         snprintf(msg, sizeof(msg), "#ERROR: numeric parse error in %s.", path);
         break;
     case 6:
         snprintf(msg, sizeof(msg), "#ERROR: file not found: %s.", path);
+        break;
+    case 7: {
+        char detail[768] = {0};
+        g_facLoadError((char *)path, detail, sizeof(detail));
+        if (detail[0]) snprintf(msg, sizeof(msg), "#ERROR: %s", detail);
+        else snprintf(msg, sizeof(msg), "#ERROR: failed to load FAC %s.", path);
+        break;
+    }
+    case 8:
+        snprintf(msg, sizeof(msg), "#ERROR: invalid argument for %s (wildcard \"*\" is not allowed).", path);
         break;
     default:
         snprintf(msg, sizeof(msg), "#ERROR: %s (%d) for %s.", status_text(status), status, path);
@@ -173,6 +187,13 @@ static LPXLOPER proj_error_result(const char *path, int status, const char *spCo
     case 6:
         snprintf(msg, sizeof(msg), "#ERROR: file not found: %s.", path);
         break;
+    case 7: {
+        char detail[768] = {0};
+        g_facLoadError((char *)path, detail, sizeof(detail));
+        if (detail[0]) snprintf(msg, sizeof(msg), "#ERROR: %s", detail);
+        else snprintf(msg, sizeof(msg), "#ERROR: failed to load FAC %s.", path);
+        break;
+    }
     default:
         snprintf(msg, sizeof(msg), "#ERROR: %s (%d) for %s.", status_text(status), status, path);
         break;
@@ -293,7 +314,7 @@ static char *build_fac_path(const char *vault, const char *resID, const char *fi
 }
 
 static int load_app_reader(void) {
-    if (g_readResult && g_projResult && g_facNumDims) return 1;
+    if (g_readResult && g_projResult && g_facNumDims && g_facLoadError) return 1;
 
     wchar_t path[MAX_PATH];
     DWORD n = GetModuleFileNameW(g_module, path, MAX_PATH);
@@ -308,7 +329,8 @@ static int load_app_reader(void) {
     g_readResult = (EReadResultFn)GetProcAddress(g_appReader, "ERead_Result");
     g_projResult = (EProjResultFn)GetProcAddress(g_appReader, "EProj_Result");
     g_facNumDims = (FacNumDimsFn)GetProcAddress(g_appReader, "FacNumDims");
-    return g_readResult && g_projResult && g_facNumDims;
+    g_facLoadError = (FacLoadErrorFn)GetProcAddress(g_appReader, "FacLoadError");
+    return g_readResult && g_projResult && g_facNumDims && g_facLoadError;
 }
 
 static XLOPER xl4_str(const char *s) {

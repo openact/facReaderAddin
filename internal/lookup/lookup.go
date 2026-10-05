@@ -20,6 +20,8 @@ const (
 	StatusParseError   = 4
 	StatusWriteError   = 5
 	StatusFileNotFound = 6
+	StatusLoadError    = 7
+	StatusWildcard     = 8
 )
 
 // ProductFromFilePath returns the filename stem used as default product key.
@@ -52,7 +54,7 @@ func ERead_ResultStatus(t *cache.Table, idx ...string) (float64, int) {
 
 	for i := 0; i < t.NumDims; i++ {
 		if strings.TrimSpace(idx[i]) == "*" {
-			return 0, StatusInvalid
+			return 0, StatusWildcard
 		}
 	}
 
@@ -291,6 +293,12 @@ func StatusText(status int) string {
 		return "parse error"
 	case StatusWriteError:
 		return "write error"
+	case StatusFileNotFound:
+		return "file not found"
+	case StatusLoadError:
+		return "FAC load error"
+	case StatusWildcard:
+		return "wildcard is not allowed"
 	default:
 		return fmt.Sprintf("status %d", status)
 	}

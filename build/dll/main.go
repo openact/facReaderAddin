@@ -46,6 +46,7 @@ const (
 var (
 	mu                sync.RWMutex
 	tables            = make(map[string]cachedTable)
+	loadErrors        = make(map[string]string)
 	kernel32          = syscall.NewLazyDLL("kernel32.dll")
 	procGetDriveTypeW = kernel32.NewProc("GetDriveTypeW")
 )
@@ -340,15 +341,23 @@ func getTable(path string) tableResult {
 	}
 	loadPath, err := copyFacToLocalCache(path, modUnix, size)
 	if err != nil {
+		loadErrors[key] = fmt.Sprintf("copy FAC %s: %v", path, err)
 		mu.Unlock()
-		return tableResult{status: lookup.StatusInvalid}
+		return tableResult{status: lookup.StatusLoadError}
 	}
 	loaded, err := cache.LoadTable(loadPath, cache.LoadOptions{})
-	if err != nil || loaded == nil {
+	if err != nil {
+		loadErrors[key] = strings.Replace(err.Error(), loadPath, path, 1)
 		mu.Unlock()
-		return tableResult{status: lookup.StatusInvalid}
+		return tableResult{status: lookup.StatusLoadError}
+	}
+	if loaded == nil {
+		loadErrors[key] = fmt.Sprintf("load FAC %s: no table returned", path)
+		mu.Unlock()
+		return tableResult{status: lookup.StatusLoadError}
 	}
 	tables[key] = cachedTable{table: loaded, sourcePath: path, modUnix: modUnix, size: size, remote: remote, local: loadPath}
+	delete(loadErrors, key)
 	mu.Unlock()
 	if remote {
 		cleanupFacCache(filepath.Dir(loadPath), loadPath, normPath(path), maxFacCacheBytes)
@@ -357,6 +366,27 @@ func getTable(path string) tableResult {
 }
 
 // ─── exported functions ───────────────────────────────────────────────────────
+
+// FacLoadError copies the most recent load error for filePath into a NUL-terminated buffer.
+// The caller supplies at least one byte and must read this immediately after StatusLoadError.
+//
+//export FacLoadError
+func FacLoadError(filePath *C.char, buffer *C.char, capacity C.int) C.int {
+	if buffer == nil || capacity <= 0 {
+		return 0
+	}
+	message := loadError(cstr(filePath))
+	out := unsafe.Slice((*byte)(unsafe.Pointer(buffer)), int(capacity))
+	n := copy(out[:len(out)-1], message)
+	out[n] = 0
+	return C.int(n)
+}
+
+func loadError(path string) string {
+	mu.RLock()
+	defer mu.RUnlock()
+	return loadErrors[normPath(path)]
+}
 
 func cstr(s *C.char) string {
 	if s == nil {
@@ -487,6 +517,7 @@ func FacRelease(filePath *C.char) (status C.int) {
 	key := normPath(cstr(filePath))
 	mu.Lock()
 	defer mu.Unlock()
+	delete(loadErrors, key)
 	if _, ok := tables[key]; ok {
 		delete(tables, key)
 		return 1
@@ -499,6 +530,7 @@ func clearTableCache() int {
 	defer mu.Unlock()
 	n := len(tables)
 	tables = make(map[string]cachedTable)
+	loadErrors = make(map[string]string)
 	return n
 }
 

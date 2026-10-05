@@ -67,6 +67,7 @@ func TestEReadResultAllowsEmptyLeadingCoordinate(t *testing.T) {
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
+
 	tbl := loadTestTable(t, path)
 
 	got, ok := ERead_Result(tbl, "", "B1", "AMT")
@@ -75,6 +76,24 @@ func TestEReadResultAllowsEmptyLeadingCoordinate(t *testing.T) {
 	}
 	if got != 123 {
 		t.Fatalf("ERead_Result = %v, want 123", got)
+	}
+}
+
+func TestEReadResultAllowsEmptyCoordinatesWithNineDimensions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "empty-coordinates.fac")
+	data := "!9,CONT_GRP_CODE,PRD_CODE,RPT_DATE,MUTUALIZATION_ID,RUN_NAME,DSCNT_RATE_TYPE,VAR_NAME,VRS,AMT\n" +
+		"*,,001I,202201,,DP,0,EXP_PH_TAX,1,0\n"
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tbl := loadTestTable(t, path)
+	got, status := ERead_ResultStatus(tbl, "", "001I", "202201", "", "DP", "0", "EXP_PH_TAX", "1", "AMT")
+	if got != 0 || status != StatusOK {
+		t.Fatalf("empty coordinates = (%v, %s), want (0, OK)", got, StatusText(status))
+	}
+	_, status = ERead_ResultStatus(tbl, "*", "001I", "202201", "", "DP", "0", "EXP_PH_TAX", "1", "AMT")
+	if status != StatusWildcard {
+		t.Fatalf("wildcard coordinate = %s, want wildcard error", StatusText(status))
 	}
 }
 

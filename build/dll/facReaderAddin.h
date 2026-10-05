@@ -88,6 +88,7 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
+extern int FacLoadError(char* filePath, char* buffer, int capacity);
 extern int EProj_Result(char* filePath, char* spCode, char* resultType, char* variable, char* timePeriod, char* simID, double* valueOut);
 extern int ERead_Result(char* filePath, int coordCount, char* k1, char* k2, char* k3, char* k4, char* k5, char* k6, char* k7, char* k8, char* k9, char* k10, char* k11, char* k12, double* valueOut);
 extern int ERead_Batch(char* filePath, char* rowKeysPacked, char* colKeysPacked, char* outputPath);

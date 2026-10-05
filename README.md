@@ -89,6 +89,7 @@ XLL 产物也输出到 `dist/`：
 - `resultType` 是兼容保留参数，当前查询逻辑不使用。
 - `simID` 省略时默认为 `0`。
 - `ERead_Result` 要求 `filename` 后的坐标数量等于 `.fac` 维度数：先传所有行维度，最后传列维度；数量不匹配时返回 `#ERROR: ...`。
+- FAC 复制或解析失败会显示具体错误（包括解析失败的行号）；只有坐标实际为 `*` 时才提示不支持通配符。空坐标可用于匹配 FAC 中的空行键。
 - `ERead_Results` 返回二维动态数组；`rowKeysRange` 必须包含 `NumDims - 1` 列，`colKeysRange` 提供最后一维列 key。
 - `EProj_Results` 返回二维动态数组；`projKeysRange` 必须有两列：`SP_CODE` 和 `VAR_NAME`，`timePeriodsRange` 提供期间列。
 - XLAM 加载后，F9 会先只失效发生变化的 facReaderAddin DLL 内存缓存，再调用 Excel workbook 重算；Shift+F9 会先只失效发生变化的缓存，再只重算当前 sheet；Ctrl+Alt+F9 / Ctrl+Shift+Alt+F9 会先做同样的变化检查，再调用对应的 Excel 全量重算。`AppReaderClearCache` 仍可用于手工全清内存缓存。

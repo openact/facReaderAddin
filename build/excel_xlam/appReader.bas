@@ -24,6 +24,8 @@ Private gFacDimsCache As Object
          ByVal projKeysPacked As String, ByVal colKeysPacked As String, ByVal outputPath As String) As Long
     Private Declare PtrSafe Function AppReaderNumDimsDLL Lib "C:\Tools\OpenAct\Addins\facReaderAddin.dll" Alias "FacNumDims" _
         (ByVal filePath As String) As Long
+    Private Declare PtrSafe Function AppReaderLoadErrorDLL Lib "C:\Tools\OpenAct\Addins\facReaderAddin.dll" Alias "FacLoadError" _
+        (ByVal filePath As String, ByVal buffer As String, ByVal capacity As Long) As Long
     Private Declare PtrSafe Function AppReaderReleaseDLL Lib "C:\Tools\OpenAct\Addins\facReaderAddin.dll" Alias "FacRelease" _
         (ByVal filePath As String) As Long
     Private Declare PtrSafe Function AppReaderClearCacheDLL Lib "C:\Tools\OpenAct\Addins\facReaderAddin.dll" Alias "FacClearCache" _
@@ -49,6 +51,8 @@ Private gFacDimsCache As Object
          ByVal projKeysPacked As String, ByVal colKeysPacked As String, ByVal outputPath As String) As Long
     Private Declare Function AppReaderNumDimsDLL Lib "C:\Tools\OpenAct\Addins\facReaderAddin.dll" Alias "FacNumDims" _
         (ByVal filePath As String) As Long
+    Private Declare Function AppReaderLoadErrorDLL Lib "C:\Tools\OpenAct\Addins\facReaderAddin.dll" Alias "FacLoadError" _
+        (ByVal filePath As String, ByVal buffer As String, ByVal capacity As Long) As Long
     Private Declare Function AppReaderReleaseDLL Lib "C:\Tools\OpenAct\Addins\facReaderAddin.dll" Alias "FacRelease" _
         (ByVal filePath As String) As Long
     Private Declare Function AppReaderClearCacheDLL Lib "C:\Tools\OpenAct\Addins\facReaderAddin.dll" Alias "FacClearCache" _
@@ -222,8 +226,22 @@ Private Function StatusMessage(ByVal status As Long) As String
         Case 4: StatusMessage = "numeric parse error"
         Case 5: StatusMessage = "failed to write batch output"
         Case 6: StatusMessage = "file not found"
+        Case 7: StatusMessage = "FAC load error"
+        Case 8: StatusMessage = "wildcard is not allowed"
         Case Else: StatusMessage = "status " & CStr(status)
     End Select
+End Function
+
+Private Function LoadErrorMessage(ByVal filePath As String) As String
+    Dim buffer As String
+    buffer = String$(768, vbNullChar)
+    Dim length As Long
+    length = AppReaderLoadErrorDLL(filePath, buffer, Len(buffer))
+    If length > 0 Then
+        LoadErrorMessage = "#ERROR: " & Left$(buffer, length)
+    Else
+        LoadErrorMessage = "#ERROR: failed to load FAC " & filePath & "."
+    End If
 End Function
 
 Private Function ReadErrorMessage(ByVal status As Long, ByVal filePath As String, _
@@ -238,11 +256,15 @@ Private Function ReadErrorMessage(ByVal status As Long, ByVal filePath As String
                 ReadErrorMessage = "#ERROR: dimension mismatch for " & filePath & " (got " & CStr(gotCoords) & " coordinates)."
             End If
         Case 3
-            ReadErrorMessage = "#ERROR: invalid argument for " & filePath & " (wildcard ""*"" is not allowed)."
+            ReadErrorMessage = "#ERROR: invalid argument for " & filePath & "."
         Case 4
             ReadErrorMessage = "#ERROR: numeric parse error in " & filePath & "."
         Case 6
             ReadErrorMessage = "#ERROR: file not found: " & filePath & "."
+        Case 7
+            ReadErrorMessage = LoadErrorMessage(filePath)
+        Case 8
+            ReadErrorMessage = "#ERROR: invalid argument for " & filePath & " (wildcard ""*"" is not allowed)."
         Case Else
             ReadErrorMessage = "#ERROR: " & StatusMessage(status) & " for " & filePath & "."
     End Select
@@ -262,6 +284,8 @@ Private Function ProjErrorMessage(ByVal status As Long, ByVal filePath As String
             ProjErrorMessage = "#ERROR: numeric parse error in " & filePath & "."
         Case 6
             ProjErrorMessage = "#ERROR: file not found: " & filePath & "."
+        Case 7
+            ProjErrorMessage = LoadErrorMessage(filePath)
         Case Else
             ProjErrorMessage = "#ERROR: " & StatusMessage(status) & " for " & filePath & "."
     End Select
@@ -585,6 +609,8 @@ Public Function ERead_Results(resVault As String, resID As String, filename As S
     If status <> 0 Then
         If status = 6 Then
             ERead_Results = "#ERROR: file not found: " & filePath & "."
+        ElseIf status = 7 Then
+            ERead_Results = LoadErrorMessage(filePath)
         Else
             ERead_Results = "#ERROR: " & StatusMessage(status) & " for " & filePath & "."
         End If
@@ -636,6 +662,8 @@ Public Function EProj_Results(resVault As String, resID As String, product As St
     If status <> 0 Then
         If status = 6 Then
             EProj_Results = "#ERROR: file not found: " & filePath & "."
+        ElseIf status = 7 Then
+            EProj_Results = LoadErrorMessage(filePath)
         Else
             EProj_Results = "#ERROR: " & StatusMessage(status) & " for " & filePath & "."
         End If

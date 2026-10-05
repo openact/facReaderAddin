@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/openact/facReaderAddin/internal/lookup"
 	"github.com/openact/kit/cache/v3"
 )
 
@@ -27,11 +29,23 @@ func TestGetTableDirectoryReturnsNil(t *testing.T) {
 
 func TestGetTableMalformedFileReturnsNil(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bad.fac")
-	if err := os.WriteFile(path, []byte("!x,BAD\n*,A\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("!3,DIM_A,DIM_B,AMT\n*,A,B,1\n*,A,B,2\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := getTable(path); got.table != nil || got.status == 0 {
-		t.Fatal("getTable returned a table for a malformed file")
+	if got := getTable(path); got.table != nil || got.status != lookup.StatusLoadError {
+		t.Fatalf("getTable malformed file = (%v, %d), want load error", got.table, got.status)
+	}
+	if detail := loadError(path); !strings.Contains(detail, "line 3: duplicate row key") {
+		t.Fatalf("load error detail = %q, want line number and cause", detail)
+	}
+	if err := os.WriteFile(path, []byte("!3,DIM_A,DIM_B,AMT\n*,,B,0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := getTable(path); got.table == nil || got.status != lookup.StatusOK {
+		t.Fatalf("getTable corrected file = (%v, %d), want loaded table", got.table, got.status)
+	}
+	if detail := loadError(path); detail != "" {
+		t.Fatalf("stale load error after successful reload: %q", detail)
 	}
 }
 

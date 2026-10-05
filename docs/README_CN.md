@@ -55,6 +55,7 @@
   - `SIM_ID/SIMULATION` <- `simID`（空值时默认 `0`）
 - `RESULT_TYPE` 在当前查询逻辑中被有意忽略。
 - `ERead_Result` 严格按表维度顺序读取。`filename` 后面的坐标参数个数必须等于 `.fac` 维度个数；否则公式所在单元格返回 `#ERROR: ...` 文本。
+- FAC 文件复制或解析失败时，单值和批量查询返回具体加载错误（解析错误含行号）；只有坐标确实为 `*` 时才显示通配符错误，空坐标可正常匹配。
 - `ERead_Result` 已改为一次 DLL 查询，不再先 `Found` 再读取。
 - `ERead_Results` 和 `EProj_Results` 用于大块结果读取，返回二维动态数组；单个坐标不存在时返回 `#N/A`。
 - XLAM 加载后，F9 会先只失效发生变化的 facReaderAddin DLL 内存缓存，再调用 Excel workbook 重算；Shift+F9 会先只失效发生变化的缓存，再只重算当前 sheet；Ctrl+Alt+F9 / Ctrl+Shift+Alt+F9 会先做同样的变化检查，再调用对应的 Excel 全量重算。`AppReaderClearCache` 仍可用于手工全清内存缓存。
