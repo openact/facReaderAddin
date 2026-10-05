@@ -343,7 +343,7 @@ func getTable(path string) tableResult {
 		mu.Unlock()
 		return tableResult{status: lookup.StatusInvalid}
 	}
-	loaded, err := cache.LoadTableSafe(loadPath)
+	loaded, err := cache.LoadTable(loadPath, cache.LoadOptions{})
 	if err != nil || loaded == nil {
 		mu.Unlock()
 		return tableResult{status: lookup.StatusInvalid}

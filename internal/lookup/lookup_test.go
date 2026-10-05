@@ -10,8 +10,17 @@ import (
 	"github.com/openact/kit/cache/v3"
 )
 
+func loadTestTable(t *testing.T, path string) *cache.Table {
+	t.Helper()
+	tbl, err := cache.LoadTable(path, cache.LoadOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tbl
+}
+
 func TestEReadResultUsesTableDimensionOrder(t *testing.T) {
-	tbl := cache.LoadTable(filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
+	tbl := loadTestTable(t, filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
 
 	got, ok := ERead_Result(tbl, "0", "TEST_ACCUM", "0", "DISC_SH_NET_BT_A", "202412")
 	if !ok {
@@ -25,7 +34,7 @@ func TestEReadResultUsesTableDimensionOrder(t *testing.T) {
 }
 
 func TestEReadResultRejectsWrongDimensionCount(t *testing.T) {
-	tbl := cache.LoadTable(filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
+	tbl := loadTestTable(t, filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
 
 	if _, ok := ERead_Result(tbl, "0", "TEST_ACCUM"); ok {
 		t.Fatal("ERead_Result matched with too few coordinates")
@@ -40,7 +49,7 @@ func TestEReadResultWithNineDimFac(t *testing.T) {
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	tbl := cache.LoadTable(path)
+	tbl := loadTestTable(t, path)
 
 	got, ok := ERead_Result(tbl, "1CNY09A0052021VFA03A2", "A204", "202201", "2", "NB", "0", "EXP_PH_TAX", "1", "AMT")
 	if !ok {
@@ -58,7 +67,7 @@ func TestEReadResultAllowsEmptyLeadingCoordinate(t *testing.T) {
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	tbl := cache.LoadTable(path)
+	tbl := loadTestTable(t, path)
 
 	got, ok := ERead_Result(tbl, "", "B1", "AMT")
 	if !ok {
@@ -76,7 +85,7 @@ func TestEReadResultHandlesQuotedCommaKey(t *testing.T) {
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	tbl := cache.LoadTable(path)
+	tbl := loadTestTable(t, path)
 
 	got, ok := ERead_Result(tbl, "PREM_INC(1,1)", "B1", "AMT")
 	if !ok {
@@ -88,7 +97,7 @@ func TestEReadResultHandlesQuotedCommaKey(t *testing.T) {
 }
 
 func TestEReadResultStatusDistinguishesZeroFromNotFound(t *testing.T) {
-	tbl := cache.LoadTable(filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
+	tbl := loadTestTable(t, filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
 
 	got, status := ERead_ResultStatus(tbl, "0", "TEST_ACCUM", "0", "SEG_CFL(1)", "202412")
 	if status != StatusOK {
@@ -105,7 +114,7 @@ func TestEReadResultStatusDistinguishesZeroFromNotFound(t *testing.T) {
 }
 
 func TestWriteEReadTable(t *testing.T) {
-	tbl := cache.LoadTable(filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
+	tbl := loadTestTable(t, filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
 	out := filepath.Join(t.TempDir(), "eread.tsv")
 	rows := [][]string{
 		{"0", "TEST_ACCUM", "0", "DISC_SH_NET_BT_A"},
@@ -129,7 +138,7 @@ func TestWriteEReadTable(t *testing.T) {
 }
 
 func TestWriteEProjTable(t *testing.T) {
-	tbl := cache.LoadTable(filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
+	tbl := loadTestTable(t, filepath.Join("..", "..", "input", "testData", "rbc2512_4", "E_2", "TEST_ACCUM.fac"))
 	out := filepath.Join(t.TempDir(), "eproj.tsv")
 	rows := [][]string{
 		{"0", "DISC_SH_NET_BT_A"},

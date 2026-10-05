@@ -29,7 +29,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	tbl := cache.LoadTable(*file)
+	tbl, err := cache.LoadTable(*file, cache.LoadOptions{})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	product := lookup.ProductFromFilePath(*file)
 	v, ok := lookup.EProj_Result(tbl, product, *spFlag, *typeFlag, *varFlag, *period, *simFlag)
 	if !ok {

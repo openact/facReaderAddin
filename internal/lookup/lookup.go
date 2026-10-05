@@ -56,8 +56,11 @@ func ERead_ResultStatus(t *cache.Table, idx ...string) (float64, int) {
 		}
 	}
 
-	val := t.RawCell(idx...)
-	if val == nil {
+	val, found, err := t.RawCell(idx[:len(idx)-1], idx[len(idx)-1])
+	if err != nil {
+		return 0, StatusDimMismatch
+	}
+	if !found {
 		return 0, StatusNotFound
 	}
 	v, err := strconv.ParseFloat(string(val), 64)
@@ -153,7 +156,10 @@ func writeTable(t *cache.Table, rows [][]string, cols []string, outputPath strin
 	defer w.Flush()
 
 	for r, row := range rows {
-		raw := t.RawRow(row...)
+		raw, _, err := t.RawRow(row)
+		if err != nil {
+			return StatusDimMismatch
+		}
 		for c, ci := range colIdx {
 			if c > 0 {
 				if _, err := w.WriteString("\t"); err != nil {
@@ -220,8 +226,11 @@ func readCellText(t *cache.Table, row []string, col string) (string, int) {
 	if len(row) != t.NumDims-1 {
 		return "", StatusDimMismatch
 	}
-	raw := t.RawRow(row...)
-	if raw == nil {
+	raw, found, err := t.RawRow(row)
+	if err != nil {
+		return "", StatusDimMismatch
+	}
+	if !found {
 		return "", StatusNotFound
 	}
 	ci, ok := columnIndex(t, col)
